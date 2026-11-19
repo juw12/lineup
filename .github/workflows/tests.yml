@@ -83,6 +83,15 @@ jobs:
       - run: npm install -g opencode-ai
       - run: python lineup.py install
       - run: python lineup.py tune --models "${{ inputs.live_model }}" --hard --dry-run --timeout 240
+      - name: Continue once if a usage limit stopped the run
+        shell: bash
+        run: |
+          stopped=$(python -c "import json, pathlib; print(json.loads((pathlib.Path.home() / '.lineup' / 'lineup.json').read_text(encoding='utf-8'))['stopped'])")
+          if [ -n "$stopped" ]; then
+            echo "Stopped: $stopped"
+            sleep 120
+            python lineup.py tune --models "${{ inputs.live_model }}" --hard --dry-run --resume --timeout 240
+          fi
       - name: Every question was answered
         shell: bash
         run: |
