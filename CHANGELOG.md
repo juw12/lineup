@@ -1,9 +1,13 @@
 # Changes
 
-## After 0.2.0 (not in a release yet)
+## 0.2.1 (19 November 2026)
 
-- The test workflow can ask one real model every question on Ubuntu and macOS when started by hand. It continues once with `--resume` after a usage-limit stop and prints why a question got no answer.
-- Result of that job with two free models: 17 of 18 questions answered and scored 10 on both systems; one question was refused by the free plan every time, so a complete tuning run on macOS or Linux is still missing. The README limits say so.
+- A provider can refuse one question with its usage-limit message while it answers the rest. Up to 0.2.0 that stopped the whole run, and `--resume` stopped at the same question again. Now Lineup asks the model one short question: if that is answered, the refused question counts as no answer, is named in the output and on the score page, and the run goes on. A real usage limit still stops the run as before.
+- The check after applying a lineup uses a question that was not refused.
+- Roll call: the first model is asked alone. On a fresh OpenCode two first starts at once collided ("database is locked"), and a working model was left out.
+- Complete tuning runs on Ubuntu and macOS, on GitHub's test machines: two free models, all 18 questions, lineup applied. On both, 34 of 36 questions were answered and scored 10, and one question was refused on both models ([run](https://github.com/juw12/lineup/actions/runs/44477706951)). The Ubuntu run is the new example score page.
+- The test workflow can do a full tuning run with several real models when started by hand, and keeps the result files.
+- 40 tests, 38 before.
 
 ## 0.2.0 (19 November 2026)
 

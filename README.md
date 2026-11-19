@@ -6,7 +6,7 @@ A team of six role agents for [OpenCode](https://opencode.ai) that picks its own
 
 ![The score page of the example run](docs/report.png)
 
-The picture is the score page of a real run, also at [juw12.github.io/lineup](https://juw12.github.io/lineup/). It is mostly empty for a reason: see [The example run](#the-example-run).
+The picture is the score page of a real run, also at [juw12.github.io/lineup](https://juw12.github.io/lineup/). It shows the finishing run: see [The finishing run](#the-finishing-run).
 
 ## What you get
 
@@ -115,7 +115,20 @@ A dry run of one model (big-pickle) on all twelve questions earlier that day pas
 ### The finishing run
 
 <!-- finishing-run:start -->
-Not done yet. Three of the free models will be asked all 18 questions on the same machine once the free limit allows it again, first try on 20 November 2026. The result will replace this paragraph and the score page.
+Done on 19 November 2026, on one of GitHub's test machines instead of the first machine, whose free limit lasts until 20 November: Ubuntu, stock OpenCode 1.19.6, no account, two free models, all 18 questions (two everyday and one harder per role), each asked once, and the lineup applied to the agents. [The run](https://github.com/juw12/lineup/actions/runs/44477706951) keeps its files until 17 February 2027; the raw log is [docs/finishing-run.log](docs/finishing-run.log).
+
+| Role | beam-free | big-pickle | Pick |
+|---|---|---|---|
+| briefing | 6.67 in 7.5 s, 1 of 3 without an answer | 6.67 in 14.1 s, 1 of 3 without an answer | beam-free |
+| docs | 10 in 4 s | 10 in 7.9 s | beam-free |
+| files | 10 in 6.4 s | 10 in 14.3 s | beam-free |
+| numbers | 10 in 6.1 s | 10 in 7.8 s | beam-free |
+| office | 10 in 5.5 s | 10 in 8.8 s | beam-free |
+| writer | 10 in 4.9 s | 10 in 6.6 s | beam-free |
+
+Each cell is the score out of 10 and the median time per answer. The pick is the best score, and the faster model when scores are equal.
+
+34 of 36 questions were answered, and every answer scored 10. Two got no answer: `briefing-newest-three`, once on each model. The provider refused it with "Free usage limit reached" while the same model answered the other questions. Up to 0.2.0 that message stopped the whole run. Since 0.2.1 Lineup asks the model one short question first: if that is answered, only this question counts as no answer and the run goes on. Why the provider refuses this question I do not know. On the Windows machine, earlier the same day, seven free models answered `briefing-newest-three` (the table above).
 <!-- finishing-run:end -->
 
 ## Your own tasks
@@ -138,7 +151,7 @@ Check types: `regex` (must match), `absent` (must not match), `bullets` (exact n
 
 - Twelve small tasks, or eighteen with `--hard`, and one or two runs are a small sample. Read a score of 10 as "passed these checks", not as "the best model".
 - Pass-or-fail checks measure whether an answer is correct and in the asked format. They do not measure style or depth.
-- The full tuning run is tested on Windows 11 with stock OpenCode 1.19.5, and on one OpenCode 2.x build, where Lineup adds `--standalone` so each question gets its own server. On macOS and Linux the unit tests run on every push, and a second job installs OpenCode there and checks that it lists the six agents. A tuning run there was tried in CI with two free models, `opencode/big-pickle` and `opencode/beam-free`, on all 18 questions: on Ubuntu and on macOS 17 of 18 were answered and scored 10, and the same one question (the three newest items of the feed) was refused every time with OpenCode's "Free usage limit reached", also when asked alone after a wait ([run with beam-free](https://github.com/juw12/lineup/actions/runs/44469486072), [run with big-pickle](https://github.com/juw12/lineup/actions/runs/44467856503)). I have not found the cause, so a complete tuning run on macOS or Linux is still missing.
+- The full tuning run is tested on Windows 11 with stock OpenCode 1.19.5, and on one OpenCode 2.x build, where Lineup adds `--standalone` so each question gets its own server. On Ubuntu and macOS it is tested on GitHub's test machines, not on a person's computer: with OpenCode 1.19.6 and two free models, [one run on each system](https://github.com/juw12/lineup/actions/runs/44477706951) asked all 18 questions per model, measured all six roles and applied the lineup. On both, 34 of 36 questions were answered and scored 10, and `briefing-newest-three` was refused on both models with "Free usage limit reached", which counts as no answer. [A check of that question](https://github.com/juw12/lineup/actions/runs/44474441495) showed that it is answered with another agent, and also when it asks for the titles only or the links only, so the provider refuses it by its content. Why, I do not know. The unit tests run on all three systems on every push, and a second job installs OpenCode and checks that it lists the six agents.
 - `lineup.exe` is built by a GitHub workflow from the tagged source and is not code-signed, so Windows may show a warning the first time you start it. The release lists its SHA-256.
 - Every question starts OpenCode once, so a question takes seconds even on a fast model.
 - I did not find another OpenCode add-on that measures models on your own machine and writes the result into the agents. If you know one, please open an issue and I will link it here.

@@ -1,0 +1,50 @@
+Roll call for 2 models.
+Tuning 6 roles on 2 models: 36 questions, 3 at a time.
+[1/36] briefing  opencode/beam-free                         0.0   240.1 s  (refused while other questions were answered: no answer in 240 s: AI_APICallError: Free usage limit reached. Free models work in OpenCode (https://opencode.ai); subscribe to OpenCode Go to keep going: )
+[2/36] briefing  opencode/beam-free                        10.0     5.9 s
+[3/36] briefing  opencode/beam-free                        10.0     7.5 s
+[4/36] briefing  opencode/big-pickle                        0.0   240.2 s  (refused while other questions were answered: no answer in 240 s: AI_APICallError: Free usage limit reached. Free models work in OpenCode (https://opencode.ai); subscribe to OpenCode Go to keep going: )
+[5/36] briefing  opencode/big-pickle                       10.0    14.1 s
+[6/36] briefing  opencode/big-pickle                       10.0     8.2 s
+[7/36] docs      opencode/beam-free                        10.0     7.3 s
+[8/36] docs      opencode/beam-free                        10.0     3.0 s
+[9/36] docs      opencode/beam-free                        10.0     4.0 s
+[10/36] docs      opencode/big-pickle                       10.0     7.9 s
+[11/36] docs      opencode/big-pickle                       10.0     4.6 s
+[12/36] docs      opencode/big-pickle                       10.0    10.3 s
+[13/36] files     opencode/beam-free                        10.0     4.4 s
+[14/36] files     opencode/beam-free                        10.0     6.4 s
+[15/36] files     opencode/beam-free                        10.0     7.8 s
+[16/36] files     opencode/big-pickle                       10.0    14.3 s
+[17/36] files     opencode/big-pickle                       10.0    10.6 s
+[18/36] files     opencode/big-pickle                       10.0    15.8 s
+[19/36] numbers   opencode/beam-free                        10.0     6.1 s
+[20/36] numbers   opencode/beam-free                        10.0     3.8 s
+[21/36] numbers   opencode/beam-free                        10.0     7.1 s
+[22/36] numbers   opencode/big-pickle                       10.0     7.6 s
+[23/36] numbers   opencode/big-pickle                       10.0     8.3 s
+[24/36] numbers   opencode/big-pickle                       10.0     7.8 s
+[25/36] office    opencode/beam-free                        10.0     5.5 s
+[26/36] office    opencode/beam-free                        10.0     5.3 s
+[27/36] office    opencode/beam-free                        10.0     5.8 s
+[28/36] office    opencode/big-pickle                       10.0     7.6 s
+[29/36] office    opencode/big-pickle                       10.0     8.8 s
+[30/36] office    opencode/big-pickle                       10.0    20.3 s
+[31/36] writer    opencode/beam-free                        10.0     4.9 s
+[32/36] writer    opencode/beam-free                        10.0     3.3 s
+[33/36] writer    opencode/beam-free                        10.0     5.2 s
+[34/36] writer    opencode/big-pickle                       10.0    12.1 s
+[35/36] writer    opencode/big-pickle                       10.0     5.8 s
+[36/36] writer    opencode/big-pickle                       10.0     6.6 s
+
+Applied to 6 agents. The files from before are in /home/runner/.lineup/backups/20261119-071616-056935
+
+role       model                                    score    speed   was
+briefing   opencode/beam-free                        6.67    7.5 s   OpenCode default
+docs       opencode/beam-free                        10.0    4.0 s   OpenCode default
+files      opencode/beam-free                        10.0    6.4 s   OpenCode default
+numbers    opencode/beam-free                        10.0    6.1 s   OpenCode default
+office     opencode/beam-free                        10.0    5.5 s   OpenCode default
+writer     opencode/beam-free                        10.0    4.9 s   OpenCode default
+refused by the provider, counted as no answer: briefing-newest-three on opencode/beam-free
+refused by the provider, counted as no answer: briefing-newest-three on opencode/big-pickle

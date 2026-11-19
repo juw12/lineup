@@ -8,7 +8,7 @@
     python lineup.py report       write and open the score page
     python lineup.py uninstall    remove the agents again
 
-Standard library only. Runs on Windows, macOS and Linux; the full tuning run is measured on Windows.
+Standard library only. Runs on Windows, macOS and Linux.
 """
 import argparse
 import concurrent.futures
