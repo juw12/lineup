@@ -1,0 +1,118 @@
+{
+  "files": [
+    {
+      "id": "files-list-csv",
+      "prompt": "Read-only task, do not change any file. List every .csv file in the folder {fixtures}\\files by file name, and say how many there are.",
+      "checks": [
+        {"type": "regex", "value": "orders_q3\\.csv"},
+        {"type": "regex", "value": "stock\\.csv"},
+        {"type": "regex", "value": "\\b(2|two)\\b"},
+        {"type": "absent", "value": "notes\\.txt"}
+      ]
+    },
+    {
+      "id": "files-find-date",
+      "prompt": "Read-only task, do not change any file. One file in the folder {fixtures}\\files mentions a new delivery date. Name that file and quote the date.",
+      "checks": [
+        {"type": "regex", "value": "notes\\.txt"},
+        {"type": "regex", "value": "14(th)? (of )?March|March 14"}
+      ]
+    }
+  ],
+  "docs": [
+    {
+      "id": "docs-three-bullets",
+      "prompt": "Summarise the passage below in exactly 3 bullet points. Start each one with \"- \". Use at most 20 words per bullet. The word \"battery\" must appear. Write nothing except the 3 bullets.\n\nThe second prototype ran for 11 hours on one charge, up from 8 hours, mainly because the team replaced the display driver and lowered the standby current. The battery itself is unchanged. Charging still takes 95 minutes, which early testers called too slow. Next month the team will test a 30 watt charger and decide whether the larger cell fits the case.",
+      "checks": [
+        {"type": "bullets", "value": 3},
+        {"type": "regex", "value": "battery"},
+        {"type": "max_words", "value": 66},
+        {"type": "absent", "value": "^(?!\\s*- )\\s*\\S"}
+      ]
+    },
+    {
+      "id": "docs-extract-numbers",
+      "prompt": "From the passage below, give the two percentages, smallest first, separated by a comma. Write nothing else.\n\nReturns fell to 12% this quarter after the packaging change, while repeat orders rose to 18% of all sales.",
+      "checks": [
+        {"type": "regex", "value": "^\\s*12\\s*%\\s*,\\s*18\\s*%\\s*\\.?\\s*$"}
+      ]
+    }
+  ],
+  "numbers": [
+    {
+      "id": "numbers-growth-margin",
+      "prompt": "Last year a product had revenue of 1,200 and cost of 900. This year revenue is 1,500 and cost is 1,050. Give the revenue growth and the gross margin of each year as percentages, then one sentence on what changed.",
+      "checks": [
+        {"type": "regex", "value": "\\b25(\\.0+)?\\s*%"},
+        {"type": "regex", "value": "\\b30(\\.0+)?\\s*%"},
+        {"type": "absent", "value": "\\b(20|33(\\.\\d+)?|42(\\.\\d+)?)\\s*%"}
+      ]
+    },
+    {
+      "id": "numbers-simple-interest",
+      "prompt": "A loan of 8,000 has simple interest of 5% a year for 3 years. Give the total interest and the total amount repaid.",
+      "checks": [
+        {"type": "regex", "value": "\\b1[, ]?200\\b"},
+        {"type": "regex", "value": "\\b9[, ]?200\\b"}
+      ]
+    }
+  ],
+  "writer": [
+    {
+      "id": "writer-fixed-format",
+      "prompt": "Topic: how a small bakery cut its food waste in half. Answer in exactly this format and write nothing else:\nTitle 1: ...\nTitle 2: ...\nTitle 3: ...\nHook: ...\nEach title has at most 8 words. The hook has at most 25 words.",
+      "checks": [
+        {"type": "regex", "value": "^Title 1: \\S"},
+        {"type": "regex", "value": "^Title 2: \\S"},
+        {"type": "regex", "value": "^Title 3: \\S"},
+        {"type": "regex", "value": "^Hook: \\S"},
+        {"type": "max_words", "value": 60},
+        {"type": "absent", "value": "^(?!Title [123]: |Hook: )\\s*\\S"}
+      ]
+    },
+    {
+      "id": "writer-plain-rewrite",
+      "prompt": "Rewrite this in plain English, in one sentence of at most 15 words, keeping the word \"refund\" and using no exclamation mark. Write only the sentence.\n\nPursuant to our policy, reimbursement in the form of a refund shall be effectuated within a period not exceeding five business days!",
+      "checks": [
+        {"type": "regex", "value": "refund"},
+        {"type": "regex", "value": "\\b(5|five)\\b"},
+        {"type": "max_words", "value": 15},
+        {"type": "absent", "value": "!"}
+      ]
+    }
+  ],
+  "office": [
+    {
+      "id": "office-column-sum",
+      "prompt": "Read-only task, do not change any file. Read {fixtures}\\sales.csv and add up the amount column yourself, without running a command. Give the sum.",
+      "checks": [
+        {"type": "regex", "value": "\\b4[, ]?815\\.50?\\b"}
+      ]
+    },
+    {
+      "id": "office-top-region",
+      "prompt": "Read-only task, do not change any file. Read {fixtures}\\sales.csv and work it out yourself, without running a command: which region has the highest total amount, and what is that total?",
+      "checks": [
+        {"type": "regex", "value": "\\bNorth\\b"},
+        {"type": "regex", "value": "\\b2[, ]?130\\.25\\b"}
+      ]
+    }
+  ],
+  "briefing": [
+    {
+      "id": "briefing-newest-three",
+      "prompt": "Read-only task. From the feed file {fixtures}\\feed.xml give the 3 newest items, newest first. One line per item: the title, then the link. Write nothing else.",
+      "checks": [
+        {"type": "regex", "value": "example\\.org/news/solar-roof.*example\\.org/news/bus-lanes.*example\\.org/news/library-hours"},
+        {"type": "absent", "value": "example\\.org/news/(harbour-bridge|school-garden)"}
+      ]
+    },
+    {
+      "id": "briefing-count-day",
+      "prompt": "Read-only task. In the feed file {fixtures}\\feed.xml, how many items were published on 2 March 2026? Answer with the number only.",
+      "checks": [
+        {"type": "regex", "value": "^\\s*(2|two)\\s*\\.?\\s*$"}
+      ]
+    }
+  ]
+}

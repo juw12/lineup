@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lineup - example score page</title>
+<style>
+  :root {
+    --paper: #f6f3ec; --card: #fffdf8; --ink: #1d1b16; --soft: #6b665b; --line: #dcd6c8;
+    --accent: #c2500f; --good: 28, 122, 74; --failed: #a3261d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #16150f; --card: #1f1d16; --ink: #ece7da; --soft: #a39d8d; --line: #37342a;
+      --accent: #f08a3c; --good: 74, 190, 128; --failed: #ef7a70;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 24px 64px; background: var(--paper); color: var(--ink);
+    font: 16px/1.5 "Segoe UI", system-ui, sans-serif;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  h1 { font: 600 34px/1.1 Georgia, "Times New Roman", serif; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h2 { font: 600 20px/1.2 Georgia, "Times New Roman", serif; margin: 44px 0 14px; }
+  .lead { color: var(--soft); margin: 0; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .card p { margin: 0; }
+  .role { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); font-weight: 600; }
+  .model { font: 600 17px/1.3 Consolas, "Cascadia Mono", monospace; margin-top: 6px !important; overflow-wrap: anywhere; }
+  .meta { color: var(--soft); font-size: 14px; margin-top: 6px !important; }
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { padding: 10px 12px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  tr:last-child th, tr:last-child td { border-bottom: 0; }
+  thead th { font: 600 12px/1.3 Consolas, "Cascadia Mono", monospace; color: var(--soft); vertical-align: bottom; }
+  tbody th { text-align: left; font-weight: 600; }
+  td { background: rgba(var(--good), calc(var(--score) * 0.42)); }
+  td b { display: block; font-size: 16px; }
+  td small { color: var(--soft); }
+  td.chosen { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 6px; }
+  .failed { color: var(--failed); font-weight: 600; }
+  td.none { background: none; color: var(--soft); font-size: 13px; }
+  .notes p { margin: 10px 0 0; color: var(--soft); font-size: 14px; overflow-wrap: anywhere; }
+  a { color: var(--accent); }
+  footer { margin-top: 28px; color: var(--soft); font-size: 14px; }
+  footer code { font-family: Consolas, "Cascadia Mono", monospace; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Lineup</h1>
+  <p class="lead">Example: a real run on stock OpenCode 1.19.5 with its nine free models (Windows 11, no account). OpenCode&#39;s free daily limit stopped it after 46 answers, so one role is fully measured. <a href="https://github.com/juw12/lineup">Lineup on GitHub</a></p>
+  <p class="lead">Tuned 2026-11-19 11:13:51 &middot; not applied</p>
+
+  <h2>Who plays each role</h2>
+  <div class="cards"><div class="card"><p class="role">briefing</p><p class="model">opencode/nemotron-3.5-super-vl-free</p><p class="meta">10.0 / 10 &middot; 6.9 s</p></div><div class="card"><p class="role">docs</p><p class="model">OpenCode default</p><p class="meta">not measured</p></div><div class="card"><p class="role">files</p><p class="model">OpenCode default</p><p class="meta">not measured</p></div><div class="card"><p class="role">numbers</p><p class="model">OpenCode default</p><p class="meta">not measured</p></div><div class="card"><p class="role">office</p><p class="model">OpenCode default</p><p class="meta">not measured</p></div><div class="card"><p class="role">writer</p><p class="model">OpenCode default</p><p class="meta">not measured</p></div></div>
+
+  <h2>Every model on every role</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th></th><th>beam-free</th><th>big-pickle</th><th>deepseek-v4.1-flash-free</th><th>flint-40b-free</th><th>glm-5.3-flash-free</th><th>mimo-v2.6-flash-free</th><th>nemotron-3-ultra-free</th><th>nemotron-3.5-lightning-free</th><th>nemotron-3.5-super-vl-free</th></tr></thead>
+      <tbody><tr><th>briefing</th><td style="--score:1.0"><b>10.0</b><small>10.8 s</small></td><td style="--score:1.0"><b>10.0</b><small>28.5 s</small></td><td style="--score:1.0"><b>10.0</b><small>23.9 s</small></td><td style="--score:1.0"><b>10.0</b><small>24.6 s</small></td><td style="--score:0.0"><b>0.0</b><small>7.8 s <span class="failed">4 failed</span></small></td><td style="--score:1.0"><b>10.0</b><small>17.1 s</small></td><td style="--score:0.0"><b>0.0</b><small>85.5 s <span class="failed">4 failed</span></small></td><td style="--score:1.0"><b>10.0</b><small>20.5 s</small></td><td class="chosen" style="--score:1.0"><b>10.0</b><small>6.9 s</small></td></tr><tr><th>docs</th><td style="--score:1.0"><b>10.0</b><small>8.1 s</small></td><td style="--score:1.0"><b>10.0</b><small>10.5 s</small></td><td class="none">not measured</td><td class="none">not measured</td><td style="--score:0.0"><b>0.0</b><small>6.0 s <span class="failed">4 failed</span></small></td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td></tr><tr><th>files</th><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td></tr><tr><th>numbers</th><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td></tr><tr><th>office</th><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td></tr><tr><th>writer</th><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td><td class="none">not measured</td></tr></tbody>
+    </table>
+  </div>
+  <div class="notes"><p>This run stopped early: Free usage limit reached. Free models work in OpenCode (https://opencode.ai); subscribe to OpenCode Go to keep going: https://opencode.ai/go Continue it with <code>tune --resume</code>.</p></div>
+
+  <footer>
+    Score is 0 to 10: the share of fixed pass-or-fail checks each answer met. The time is the median seconds per answer.
+    The outlined cell is the model in use. "failed" counts questions with no answer (time-out or error); they score 0.
+    A usage limit is not scored: it stops the run, and <code>tune --resume</code> continues it.
+    Lineup 0.1.0.
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+<title>Sample town news</title>
+<link>https://example.org/news</link>
+<description>Made-up items for the Lineup scoring tasks.</description>
+<item><title>Harbour bridge repainting starts</title><link>https://example.org/news/harbour-bridge</link><pubDate>Sun, 01 Mar 2026 09:00:00 GMT</pubDate></item>
+<item><title>Solar roof approved for the sports hall</title><link>https://example.org/news/solar-roof</link><pubDate>Tue, 03 Mar 2026 07:30:00 GMT</pubDate></item>
+<item><title>School garden wins regional prize</title><link>https://example.org/news/school-garden</link><pubDate>Sat, 28 Feb 2026 16:45:00 GMT</pubDate></item>
+<item><title>Library extends evening hours</title><link>https://example.org/news/library-hours</link><pubDate>Mon, 02 Mar 2026 08:15:00 GMT</pubDate></item>
+<item><title>New bus lanes open on Mill Road</title><link>https://example.org/news/bus-lanes</link><pubDate>Mon, 02 Mar 2026 18:20:00 GMT</pubDate></item>
+</channel></rss>
