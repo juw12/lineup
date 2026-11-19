@@ -104,7 +104,41 @@ jobs:
           failed = {role: cell for role, cells in result["table"].items() for cell in cells.values() if cell["errors"]}
           assert not failed, failed
           EOF
+      - name: Why a question got no answer
+        if: failure()
+        shell: bash
+        run: |
+          python - <<'EOF'
+          import json, pathlib, subprocess, sys
+          sys.path.insert(0, ".")
+          import lineup
+          home = pathlib.Path.home() / ".lineup"
+          answered = {json.loads(line)["task"] for line in (home / "results.jsonl").read_text(encoding="utf-8").splitlines()}
+          missing = [(role, task) for role, tasks in lineup.load_tasks(True).items() for task in tasks if task["id"] not in answered]
+          print("not answered:", [task["id"] for _, task in missing])
+          for role, task in missing[:1]:
+              executable = lineup.find_opencode(None)
+              command = [executable, "run", *lineup.run_flags(executable), "--print-logs", "--agent", lineup.PREFIX + role,
+                         "--format", "json", "--model", "${{ inputs.live_model }}", task["prompt"]]
+              try:
+                  done = subprocess.run(command, cwd=lineup.FIXTURES, stdin=subprocess.DEVNULL, capture_output=True, timeout=90)
+                  output, errors = done.stdout, done.stderr
+              except subprocess.TimeoutExpired as stopped:
+                  output, errors = stopped.stdout or b"", stopped.stderr or b""
+              for line in output.decode("utf-8", "replace").splitlines():
+                  try:
+                      event = json.loads(line)
+                  except json.JSONDecodeError:
+                      continue
+                  part = event.get("part", {})
+                  print("event:", event.get("type"), part.get("type", ""), part.get("tool", ""),
+                        json.dumps(part.get("state", {}).get("input", ""))[:200], str(part.get("text", ""))[:200])
+              for line in errors.decode("utf-8", "replace").splitlines():
+                  if any(word in line.lower() for word in ("error", "limit", "retry", "status", "webfetch")):
+                      print("log:", line[:400])
+          EOF
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: score-page-${{ matrix.os }}
           path: ~/.lineup/report.html
