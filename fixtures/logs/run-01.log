@@ -1,0 +1,5 @@
+OK    start
+ERROR pump pressure low
+OK    retry after error
+ERROR pump pressure low
+OK    done

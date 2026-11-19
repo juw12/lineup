@@ -2,6 +2,7 @@
 
     python -m unittest discover -s tests -v
 """
+import importlib
 import io
 import json
 import os
@@ -41,6 +42,27 @@ GOOD_ANSWERS = {
         "Library extends evening hours https://example.org/news/library-hours"
     ),
     "briefing-count-day": "2",
+    # the harder third task of every role (tune --hard)
+    "files-count-errors": "run-01.log: 2\nrun-02.log: 4\nrun-03.log: 1\n\nrun-02.log has the most, 4. Total: 7.",
+    "docs-table-order": (
+        "| Name | Role | Start year |\n|---|---|---|\n| Ana | Team lead | 2019 |\n| Ben | Tooling | 2020 |\n"
+        "| Chidi | Test lab | 2021 |\n| Dewi | Purchasing | 2023 |"
+    ),
+    "numbers-product-mix": (
+        "Total revenue: 6,000.00\nTotal gross profit: 2,160.00\nOverall gross margin: 36.0%\n"
+        "Highest margin: product C, 45%\nRevenue after two years: 7,260.00"
+    ),
+    "writer-three-sentences": (
+        "Today our shop starts to refill glass bottles at the counter. Bring any clean bottle and pay only for "
+        "what goes in. Which bottle will you bring first?"
+    ),
+    "office-month-change": "January: 2,915.75\nFebruary: 1,899.75\nNorth fell the most, by 730.25.",
+    "briefing-by-day": (
+        "2026-03-03: 1: Solar roof approved for the sports hall\n"
+        "2026-03-02: 2: Library extends evening hours | New bus lanes open on Mill Road\n"
+        "2026-03-01: 1: Harbour bridge repainting starts\n"
+        "2026-02-28: 1: School garden wins regional prize"
+    ),
 }
 
 # Plausible mistakes. None may score 10.
@@ -61,6 +83,18 @@ BAD_ANSWERS = {
         "School garden wins https://example.org/news/school-garden"
     ),
     "briefing-count-day": "There were 3 items.",
+    "files-count-errors": "run-02.log has the most ERROR lines, 4. In total the word appears 9 times.",
+    "docs-table-order": (
+        "Here is the table:\n| Name | Role | Start year |\n|---|---|---|\n| Chidi | Test lab | 2021 |\n"
+        "| Ana | Team lead | 2019 |\n| Dewi | Purchasing | 2022 |\n| Ben | Tooling | 2020 |"
+    ),
+    "numbers-product-mix": "Revenue 6,000, gross profit 2,160, margin 36%. Product C has the best margin. After two years: 7,200.",
+    "writer-three-sentences": "Today we are excited to announce our new refill station! Bring your glass bottles. See you soon.",
+    "office-month-change": "January: 2,915.75. February: 1,899.75. South fell the most, by 332.75.",
+    "briefing-by-day": (
+        "Here is the feed by day:\n- 3 March 2026: Solar roof approved for the sports hall\n"
+        "- 2 March 2026: New bus lanes open on Mill Road, Library extends evening hours"
+    ),
 }
 
 
@@ -97,16 +131,21 @@ class Sandbox(unittest.TestCase):
             lineup.main(list(arguments))
         return output.getvalue()
 
-    def use_models(self, quality, dead=(), flaky=(), limit_after=None):
-        """quality: model -> share of each role's tasks it answers well.
+    def use_models(self, quality, dead=(), flaky=(), limit_after=None, hard_good=()):
+        """quality: model -> share of each role's everyday tasks it answers well.
 
         dead: models that never answer. flaky: models that answer the roll call and nothing else.
         limit_after: the provider refuses every question after this many. Returns the list of questions asked.
+        hard_good: the models that also answer the hard tasks well.
         """
         place = {}  # prompt -> (task id, position within its role, tasks in that role)
         for tasks in lineup.load_tasks().values():
             for position, task in enumerate(tasks):
                 place[task["prompt"]] = (task["id"], position, len(tasks))
+        hard = {
+            task["prompt"]: task["id"]
+            for tasks in lineup.load_tasks(hard=True).values() for task in tasks if task.get("level") == "hard"
+        }
         asked = []
 
         def stand_in(executable, agent, model, prompt, timeout):
@@ -120,8 +159,11 @@ class Sandbox(unittest.TestCase):
             asked.append((agent, model, prompt))
             if model in flaky:
                 return "", 1.0, "empty answer"
-            task, position, count = place[prompt]
-            good = position < round(quality[model] * count)
+            if prompt in hard:
+                task, good = hard[prompt], model in hard_good
+            else:
+                task, position, count = place[prompt]
+                good = position < round(quality[model] * count)
             return (GOOD_ANSWERS if good else BAD_ANSWERS)[task], quality.get("seconds:" + model, 5.0), ""
 
         lineup.ask = stand_in
@@ -134,29 +176,65 @@ class Tasks(unittest.TestCase):
         self.assertEqual(sorted(tasks), lineup.roles())
         self.assertEqual(len(lineup.roles()), 6)
         for role in lineup.roles():
-            self.assertGreaterEqual(len(tasks[role]), 2, role)
+            self.assertEqual(len(tasks[role]), 2, role)
+
+    def test_hard_adds_one_task_per_role(self):
+        everyday, with_hard = lineup.load_tasks(), lineup.load_tasks(hard=True)
+        for role in lineup.roles():
+            self.assertEqual(len(with_hard[role]), 3, role)
+            self.assertEqual([task["id"] for task in with_hard[role][:2]], [task["id"] for task in everyday[role]])
+            self.assertEqual(with_hard[role][2].get("level"), "hard", role)
+            self.assertTrue(all("level" not in task for task in everyday[role]), role)
 
     def test_a_correct_answer_scores_ten(self):
-        for tasks in lineup.load_tasks().values():
+        for tasks in lineup.load_tasks(hard=True).values():
             for task in tasks:
                 self.assertEqual(lineup.score_answer(task, GOOD_ANSWERS[task["id"]]), 10.0, task["id"])
 
     def test_a_wrong_answer_does_not_score_ten(self):
-        for tasks in lineup.load_tasks().values():
+        for tasks in lineup.load_tasks(hard=True).values():
             for task in tasks:
                 self.assertLess(lineup.score_answer(task, BAD_ANSWERS[task["id"]]), 10.0, task["id"])
 
     def test_no_answer_scores_zero(self):
-        for tasks in lineup.load_tasks().values():
+        for tasks in lineup.load_tasks(hard=True).values():
             for task in tasks:
                 self.assertEqual(lineup.score_answer(task, ""), 0.0, task["id"])
 
     def test_fixture_paths_are_filled_in_and_exist(self):
-        for tasks in lineup.load_tasks().values():
-            for task in tasks:
-                self.assertNotIn("{fixtures}", task["prompt"])
+        prompts = {task["id"]: task["prompt"] for tasks in lineup.load_tasks(hard=True).values() for task in tasks}
+        for prompt in prompts.values():
+            self.assertNotIn("{fixtures}", prompt)
+        for task, inside in (
+            ("files-list-csv", "files"), ("office-column-sum", "sales.csv"),
+            ("briefing-newest-three", "feed.xml"), ("files-count-errors", "logs"),
+        ):  # the path in the prompt is this system's own spelling of a path that exists
+            path = lineup.FIXTURES / inside
+            self.assertTrue(path.exists(), inside)
+            self.assertIn(str(path) + " ", prompts[task])
         for name in ("files/orders_q3.csv", "files/stock.csv", "files/notes.txt", "sales.csv", "feed.xml"):
             self.assertTrue((lineup.FIXTURES / name).is_file(), name)
+
+    def test_a_fixture_path_takes_either_slash_and_keeps_the_full_stop_of_the_sentence(self):
+        def fill(prompt):
+            return lineup.FIXTURE_PATH.sub(lineup.fixture_path, prompt)
+
+        expected = str(lineup.FIXTURES / "files" / "stock.csv")
+        self.assertEqual(fill("Read {fixtures}/files/stock.csv."), f"Read {expected}.")
+        self.assertEqual(fill("Read {fixtures}\\files\\stock.csv now"), f"Read {expected} now")
+        self.assertEqual(fill("In {fixtures}, look"), f"In {lineup.FIXTURES}, look")
+
+    def test_the_log_fixture_matches_the_expected_counts(self):
+        counts = {
+            path.name: sum(line.startswith("ERROR") for line in path.read_text(encoding="utf-8").splitlines())
+            for path in (lineup.FIXTURES / "logs").glob("*.log")
+        }
+        self.assertEqual(counts, {"run-01.log": 2, "run-02.log": 4, "run-03.log": 1})
+        mentions = sum(
+            "error" in line.lower()
+            for path in (lineup.FIXTURES / "logs").glob("*.log") for line in path.read_text(encoding="utf-8").splitlines()
+        )
+        self.assertEqual(mentions, 9)  # the count a careless reader gets, which the task rejects
 
     def test_the_sales_fixture_matches_the_expected_totals(self):
         totals = {}
@@ -166,6 +244,29 @@ class Tasks(unittest.TestCase):
         self.assertEqual(round(sum(totals.values()), 2), 4815.50)
         self.assertEqual(max(totals, key=totals.get), "North")
         self.assertEqual(round(totals["North"], 2), 2130.25)
+
+    def test_the_sales_fixture_matches_the_month_change(self):
+        months = {}
+        for line in (lineup.FIXTURES / "sales.csv").read_text(encoding="utf-8").splitlines()[1:]:
+            date, region, amount = line.split(",")
+            months[(date[5:7], region)] = months.get((date[5:7], region), 0) + float(amount)
+        january = {region: total for (month, region), total in months.items() if month == "01"}
+        february = {region: total for (month, region), total in months.items() if month == "02"}
+        self.assertEqual(round(sum(january.values()), 2), 2915.75)
+        self.assertEqual(round(sum(february.values()), 2), 1899.75)
+        change = {region: round(february[region] - january[region], 2) for region in january}
+        self.assertEqual(min(change, key=change.get), "North")
+        self.assertEqual(change["North"], -730.25)
+
+    def test_the_packaged_program_reads_its_files_from_where_it_was_unpacked(self):
+        self.addCleanup(importlib.reload, lineup)
+        with tempfile.TemporaryDirectory() as unpacked:
+            sys._MEIPASS = unpacked
+            self.addCleanup(lambda: hasattr(sys, "_MEIPASS") and delattr(sys, "_MEIPASS"))
+            importlib.reload(lineup)
+            self.assertEqual(lineup.TASKS_FILE, Path(unpacked) / "tasks.json")
+            self.assertEqual(lineup.AGENT_SOURCE, Path(unpacked) / "agents")
+            del sys._MEIPASS
 
     def test_agent_files_are_valid_and_carry_no_model(self):
         for path in lineup.AGENT_SOURCE.glob("lineup-*.md"):
@@ -379,6 +480,33 @@ class Tuning(Sandbox):
         for path in self.agents.glob("lineup-*.md"):
             self.assertEqual(lineup.read_model(path), "p/strong", path.name)
         self.assertEqual(len((self.home / "results.jsonl").read_text(encoding="utf-8").splitlines()), 24)
+
+    def test_hard_asks_a_third_question_and_separates_models_that_tie_on_the_everyday_ones(self):
+        self.run_lineup("install")
+        models = {"p/fast": 1.0, "p/deep": 1.0, "seconds:p/fast": 1.0}
+        self.use_models(models, hard_good=("p/deep",))
+        self.run_lineup("tune", "--models", "p/fast,p/deep")
+        self.assertEqual(lineup.read_model(self.agents / "lineup-numbers.md"), "p/fast")  # a tie, so speed decides
+
+        asked = self.use_models(models, hard_good=("p/deep",))
+        output = self.run_lineup("tune", "--models", "p/fast,p/deep", "--hard")
+        self.assertIn("36 questions", output)
+        self.assertEqual(len(asked), 36 + 6)  # 2 models x 18 questions, then one check per changed agent
+        saved = json.loads((self.home / "lineup.json").read_text(encoding="utf-8"))
+        self.assertTrue(saved["hard"])
+        self.assertEqual(saved["table"]["numbers"]["p/deep"]["score"], 10.0)
+        self.assertLess(saved["table"]["numbers"]["p/fast"]["score"], 10.0)
+        for path in self.agents.glob("lineup-*.md"):
+            self.assertEqual(lineup.read_model(path), "p/deep", path.name)
+
+    def test_hard_resumes_from_an_everyday_run(self):
+        self.run_lineup("install")
+        self.use_models({"p/one": 1.0})
+        self.run_lineup("tune", "--models", "p/one", "--dry-run")
+        asked = self.use_models({"p/one": 1.0}, hard_good=("p/one",))
+        output = self.run_lineup("tune", "--models", "p/one", "--hard", "--dry-run", "--resume")
+        self.assertEqual(len(asked), 6)  # only the six hard questions are new
+        self.assertEqual(output.count("(from the earlier run)"), 12)
 
     def test_a_fresh_tune_asks_everything_again(self):
         self.run_lineup("install")

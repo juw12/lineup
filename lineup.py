@@ -2,12 +2,13 @@
 
     python lineup.py install      copy the six role agents into OpenCode
     python lineup.py tune         score every model on every role, keep the best one per role
+    python lineup.py tune --hard     also ask the harder third question of every role
     python lineup.py tune --resume   continue a run that a usage limit stopped
     python lineup.py status       show the current lineup
     python lineup.py report       write and open the score page
     python lineup.py uninstall    remove the agents again
 
-Standard library only. Windows is the tested platform.
+Standard library only. Runs on Windows, macOS and Linux; the full tuning run is measured on Windows.
 """
 import argparse
 import concurrent.futures
@@ -18,6 +19,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import statistics
 import subprocess
 import sys
@@ -25,14 +27,17 @@ import time
 import webbrowser
 from pathlib import Path
 
-VERSION = "0.1.0"
-HERE = Path(__file__).resolve().parent
+VERSION = "0.2.0"
+# In the packaged lineup.exe the agents, tasks and fixtures are unpacked next to the program at start.
+HERE = Path(getattr(sys, "_MEIPASS", None) or Path(__file__).resolve().parent)
+PROGRAM = "lineup" if getattr(sys, "frozen", False) else "python lineup.py"  # how the user started it
 AGENT_SOURCE = HERE / "agents"
 FIXTURES = HERE / "fixtures"
 TASKS_FILE = HERE / "tasks.json"
 PREFIX = "lineup-"
 MODEL_LINE = re.compile(r"^model:.*\n", re.MULTILINE)
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
+FIXTURE_PATH = re.compile(r"\{fixtures\}(?:[\\/]([\w\-]+(?:[\\/.][\w\-]+)*))?")
 LOGGED_ERROR = re.compile(r'error\.error="([^"]+)"|level=ERROR.*?message="([^"]+)"')
 LIMIT = re.compile(r"usage limit|rate limit|quota|too many requests|\b429\b", re.IGNORECASE)
 ROLL_CALL = "Reply with the single word: ready"
@@ -106,7 +111,8 @@ def ask(executable, agent, model, prompt, timeout):
     command.append(prompt)
     started = time.time()
     process = subprocess.Popen(
-        command, cwd=FIXTURES, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        command, cwd=FIXTURES, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        start_new_session=os.name != "nt",  # its own process group, so a timeout can stop the helpers too
     )
     timed_out = False
     try:
@@ -116,7 +122,10 @@ def ask(executable, agent, model, prompt, timeout):
         if os.name == "nt":  # OpenCode starts helper processes; stop the whole tree
             subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True)
         else:
-            process.kill()
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except OSError:
+                process.kill()
         output, errors = process.communicate()
     seconds = time.time() - started
     output = output.decode("utf-8", "replace")
@@ -180,11 +189,19 @@ def score_answer(task, answer):
     return round(10 * passed / len(task["checks"]), 2)
 
 
-def load_tasks():
+def fixture_path(match):
+    """{fixtures}/files/a.csv in a prompt -> that path on this machine, with this system's separators."""
+    inside = match.group(1)
+    return str(FIXTURES.joinpath(*re.split(r"[\\/]", inside)) if inside else FIXTURES)
+
+
+def load_tasks(hard=False):
+    """role -> its tasks. A task marked "level": "hard" is only asked with tune --hard."""
     tasks = json.loads(TASKS_FILE.read_text(encoding="utf-8"))
-    for role_tasks in tasks.values():
-        for task in role_tasks:
-            task["prompt"] = task["prompt"].replace("{fixtures}", str(FIXTURES))
+    for role, role_tasks in tasks.items():
+        tasks[role] = [task for task in role_tasks if hard or task.get("level") != "hard"]
+        for task in tasks[role]:
+            task["prompt"] = FIXTURE_PATH.sub(fixture_path, task["prompt"])
     return tasks
 
 
@@ -241,7 +258,7 @@ def require_install():
     files = {path.stem[len(PREFIX):]: path for path in installed_files()}
     missing = [role for role in roles() if role not in files]
     if missing:
-        sys.exit("Agents are not installed yet. Run: python lineup.py install")
+        sys.exit(f"Agents are not installed yet. Run: {PROGRAM} install")
     return files
 
 
@@ -259,7 +276,7 @@ def install(arguments):
         print(f"installed {destination.stem}" + (f"  (model kept: {kept_model})" if kept_model else ""))
     print(f"\n{len(roles())} agents are in {target}")
     print("Restart OpenCode, then pick an agent (Tab in the terminal, the agent menu in the desktop app).")
-    print("Next: python lineup.py tune")
+    print(f"Next: {PROGRAM} tune")
 
 
 def uninstall(arguments):
@@ -273,7 +290,7 @@ def uninstall(arguments):
 def tune(arguments):
     executable = find_opencode(arguments.opencode)
     agent_files = require_install()
-    tasks = load_tasks()
+    tasks = load_tasks(arguments.hard)
     models = arguments.models.split(",") if arguments.models else list_models(executable)
     if not models:
         sys.exit("OpenCode listed no models. Pass --models provider/model,provider/model")
@@ -344,7 +361,7 @@ def tune(arguments):
     before = {role: read_model(agent_files[role]) for role in roles()}
     chosen = {role: pick(table[role], before[role]) if role in measured else before[role] for role in roles()}
     result = {
-        "version": VERSION, "tuned_at": tuned_at, "models": models, "left_out": left_out,
+        "version": VERSION, "tuned_at": tuned_at, "models": models, "left_out": left_out, "hard": arguments.hard,
         "stopped": stopped[0] if stopped else "", "table": table, "measured": measured,
         "before": before, "lineup": chosen, "applied": False,
     }
@@ -406,13 +423,13 @@ def status(arguments):
         score = scores.get(role, {}).get(model, {}).get("score", "-")
         print(f"{PREFIX + role:<18} {model or 'OpenCode default':<40} {score:>5}")
     if not scores:
-        print("\nNot tuned yet. Run: python lineup.py tune")
+        print(f"\nNot tuned yet. Run: {PROGRAM} tune")
 
 
 def report(arguments):
     saved = home_folder() / "lineup.json"
     if not saved.exists():
-        sys.exit("Nothing to show yet. Run: python lineup.py tune")
+        sys.exit(f"Nothing to show yet. Run: {PROGRAM} tune")
     report_file = write_report(json.loads(saved.read_text(encoding="utf-8")))
     print(report_file)
     if not arguments.no_open:
@@ -478,6 +495,7 @@ def main(argv=None):
     tuner.add_argument("--runs", type=int, default=1, help="times each question is asked (default 1)")
     tuner.add_argument("--parallel", type=int, default=3, help="questions asked at the same time (default 3)")
     tuner.add_argument("--timeout", type=int, default=180, help="seconds to wait for one answer (default 180)")
+    tuner.add_argument("--hard", action="store_true", help="also ask the harder third question of every role")
     tuner.add_argument("--dry-run", action="store_true", help="score only, do not change the agents")
     tuner.add_argument("--resume", action="store_true", help="reuse the answers of a run that was stopped")
     tuner.add_argument("--opencode", help="path to the opencode executable")

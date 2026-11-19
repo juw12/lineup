@@ -2,7 +2,7 @@
   "files": [
     {
       "id": "files-list-csv",
-      "prompt": "Read-only task, do not change any file. List every .csv file in the folder {fixtures}\\files by file name, and say how many there are.",
+      "prompt": "Read-only task, do not change any file. List every .csv file in the folder {fixtures}/files by file name, and say how many there are.",
       "checks": [
         {"type": "regex", "value": "orders_q3\\.csv"},
         {"type": "regex", "value": "stock\\.csv"},
@@ -12,10 +12,21 @@
     },
     {
       "id": "files-find-date",
-      "prompt": "Read-only task, do not change any file. One file in the folder {fixtures}\\files mentions a new delivery date. Name that file and quote the date.",
+      "prompt": "Read-only task, do not change any file. One file in the folder {fixtures}/files mentions a new delivery date. Name that file and quote the date.",
       "checks": [
         {"type": "regex", "value": "notes\\.txt"},
         {"type": "regex", "value": "14(th)? (of )?March|March 14"}
+      ]
+    },
+    {
+      "id": "files-count-errors",
+      "level": "hard",
+      "prompt": "Read-only task, do not change any file and do not run a command. The folder {fixtures}/logs holds three .log files. In each file, count the lines that start with the word ERROR. Name the file with the most such lines and give its count, then give the total over all three files.",
+      "checks": [
+        {"type": "regex", "value": "run-02\\.log"},
+        {"type": "regex", "value": "\\b(4|four)\\b"},
+        {"type": "regex", "value": "\\b(7|seven)\\b"},
+        {"type": "absent", "value": "\\b(9|nine)\\b"}
       ]
     }
   ],
@@ -36,6 +47,17 @@
       "checks": [
         {"type": "regex", "value": "^\\s*12\\s*%\\s*,\\s*18\\s*%\\s*\\.?\\s*$"}
       ]
+    },
+    {
+      "id": "docs-table-order",
+      "level": "hard",
+      "prompt": "Turn the passage below into a Markdown table with exactly these columns: Name | Role | Start year. One row per person, earliest start year first. Write nothing except the table.\n\nChidi runs the test lab and started in 2021. Ana, the team lead, has been here since 2019. Dewi handles purchasing and joined two years after Chidi. Ben started one year after Ana and looks after the tooling.",
+      "checks": [
+        {"type": "regex", "value": "^\\s*\\|\\s*Name\\s*\\|\\s*Role\\s*\\|\\s*Start year\\s*\\|\\s*$"},
+        {"type": "regex", "value": "\\bAna\\b.*2019.*\\bBen\\b.*2020.*\\bChidi\\b.*2021.*\\bDewi\\b.*2023"},
+        {"type": "absent", "value": "\\b2022\\b"},
+        {"type": "absent", "value": "^(?!\\s*\\|)\\s*\\S"}
+      ]
     }
   ],
   "numbers": [
@@ -54,6 +76,18 @@
       "checks": [
         {"type": "regex", "value": "\\b1[, ]?200\\b"},
         {"type": "regex", "value": "\\b9[, ]?200\\b"}
+      ]
+    },
+    {
+      "id": "numbers-product-mix",
+      "level": "hard",
+      "prompt": "A shop sells three products in one month. A: 120 units at 15.00 each, unit cost 9.00. B: 80 units at 22.50 each, unit cost 18.00. C: 40 units at 60.00 each, unit cost 33.00. Give the total revenue, the total gross profit, the overall gross margin as a percentage, the product with the highest margin percentage together with that percentage, and the monthly revenue after two years if it grows 10% a year.",
+      "checks": [
+        {"type": "regex", "value": "\\b6[, ]?000\\b"},
+        {"type": "regex", "value": "\\b2[, ]?160\\b"},
+        {"type": "regex", "value": "\\b36(\\.0+)?\\s*%"},
+        {"type": "regex", "value": "\\b45(\\.0+)?\\s*%"},
+        {"type": "regex", "value": "\\b7[, ]?260\\b"}
       ]
     }
   ],
@@ -79,29 +113,53 @@
         {"type": "max_words", "value": 15},
         {"type": "absent", "value": "!"}
       ]
+    },
+    {
+      "id": "writer-three-sentences",
+      "level": "hard",
+      "prompt": "Write an announcement for a shop that now refills glass bottles. Exactly 3 sentences. The first sentence starts with the word \"Today\". The third sentence is a question. Use the words \"refill\" and \"glass\". Do not use the word \"new\", any exclamation mark, or more than 40 words. Write only the 3 sentences.",
+      "checks": [
+        {"type": "regex", "value": "\\A\\s*Today\\b[^.!?]*[.?]\\s+[^.!?]+[.?]\\s+[^.!?]+\\?\\s*\\Z"},
+        {"type": "regex", "value": "refill"},
+        {"type": "regex", "value": "glass"},
+        {"type": "absent", "value": "\\bnew\\b"},
+        {"type": "absent", "value": "!"},
+        {"type": "max_words", "value": 40}
+      ]
     }
   ],
   "office": [
     {
       "id": "office-column-sum",
-      "prompt": "Read-only task, do not change any file. Read {fixtures}\\sales.csv and add up the amount column yourself, without running a command. Give the sum.",
+      "prompt": "Read-only task, do not change any file. Read {fixtures}/sales.csv and add up the amount column yourself, without running a command. Give the sum.",
       "checks": [
         {"type": "regex", "value": "\\b4[, ]?815\\.50?\\b"}
       ]
     },
     {
       "id": "office-top-region",
-      "prompt": "Read-only task, do not change any file. Read {fixtures}\\sales.csv and work it out yourself, without running a command: which region has the highest total amount, and what is that total?",
+      "prompt": "Read-only task, do not change any file. Read {fixtures}/sales.csv and work it out yourself, without running a command: which region has the highest total amount, and what is that total?",
       "checks": [
         {"type": "regex", "value": "\\bNorth\\b"},
         {"type": "regex", "value": "\\b2[, ]?130\\.25\\b"}
+      ]
+    },
+    {
+      "id": "office-month-change",
+      "level": "hard",
+      "prompt": "Read-only task, do not change any file. Read {fixtures}/sales.csv and work it out yourself, without running a command. Give the total amount of January and the total amount of February, then name the region whose total fell the most from January to February, and by how much.",
+      "checks": [
+        {"type": "regex", "value": "\\b2[, ]?915\\.75\\b"},
+        {"type": "regex", "value": "\\b1[, ]?899\\.75\\b"},
+        {"type": "regex", "value": "\\bNorth\\b"},
+        {"type": "regex", "value": "\\b730\\.25\\b"}
       ]
     }
   ],
   "briefing": [
     {
       "id": "briefing-newest-three",
-      "prompt": "Read-only task. From the feed file {fixtures}\\feed.xml give the 3 newest items, newest first. One line per item: the title, then the link. Write nothing else.",
+      "prompt": "Read-only task. From the feed file {fixtures}/feed.xml give the 3 newest items, newest first. One line per item: the title, then the link. Write nothing else.",
       "checks": [
         {"type": "regex", "value": "example\\.org/news/solar-roof.*example\\.org/news/bus-lanes.*example\\.org/news/library-hours"},
         {"type": "absent", "value": "example\\.org/news/(harbour-bridge|school-garden)"}
@@ -109,9 +167,19 @@
     },
     {
       "id": "briefing-count-day",
-      "prompt": "Read-only task. In the feed file {fixtures}\\feed.xml, how many items were published on 2 March 2026? Answer with the number only.",
+      "prompt": "Read-only task. In the feed file {fixtures}/feed.xml, how many items were published on 2 March 2026? Answer with the number only.",
       "checks": [
         {"type": "regex", "value": "^\\s*(2|two)\\s*\\.?\\s*$"}
+      ]
+    },
+    {
+      "id": "briefing-by-day",
+      "level": "hard",
+      "prompt": "Read-only task. Group the items of the feed file {fixtures}/feed.xml by the day they were published, newest day first. One line per day and nothing else, in this form: the date as YYYY-MM-DD, a colon, the number of items, a colon, then the titles in order of time, earliest first, separated by \" | \".",
+      "checks": [
+        {"type": "regex", "value": "2026-03-03.*Solar roof.*2026-03-02.*Library extends.*\\|.*New bus lanes.*2026-03-01.*Harbour bridge.*2026-02-28.*School garden"},
+        {"type": "regex", "value": "^\\s*2026-03-02\\s*:\\s*2\\s*:"},
+        {"type": "absent", "value": "^(?!\\s*2026-\\d\\d-\\d\\d\\s*:)\\s*\\S"}
       ]
     }
   ]

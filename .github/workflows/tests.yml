@@ -1,0 +1,96 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      live_model:
+        description: "Also ask one real model every question on Linux and macOS (provider/model). Empty = skip."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: unit tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m unittest discover -s tests -v
+
+  opencode:
+    name: real OpenCode lists the agents (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g opencode-ai
+      - run: opencode --version
+      - run: python lineup.py install
+      - run: python lineup.py status
+      - name: OpenCode lists all six agents
+        shell: bash
+        run: |
+          opencode agent list > agents.txt 2>&1 || true
+          grep "lineup-" agents.txt || true
+          for role in briefing docs files numbers office writer; do
+            grep -q "lineup-$role" agents.txt || { echo "missing: lineup-$role"; cat agents.txt; exit 1; }
+          done
+      - run: python lineup.py uninstall
+
+  live:
+    name: one real model, every question (${{ matrix.os }})
+    if: github.event_name == 'workflow_dispatch' && inputs.live_model != ''
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g opencode-ai
+      - run: python lineup.py install
+      - run: python lineup.py tune --models "${{ inputs.live_model }}" --hard --dry-run --timeout 240
+      - name: Every question was answered
+        shell: bash
+        run: |
+          python - <<'EOF'
+          import json, pathlib
+          result = json.loads((pathlib.Path.home() / ".lineup" / "lineup.json").read_text(encoding="utf-8"))
+          print(json.dumps(result["table"], indent=1))
+          assert not result["stopped"], result["stopped"]
+          assert len(result["measured"]) == 6, result["measured"]
+          failed = {role: cell for role, cells in result["table"].items() for cell in cells.values() if cell["errors"]}
+          assert not failed, failed
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: score-page-${{ matrix.os }}
+          path: ~/.lineup/report.html

@@ -1,5 +1,7 @@
 # Lineup
 
+[![tests](https://github.com/juw12/lineup/actions/workflows/tests.yml/badge.svg)](https://github.com/juw12/lineup/actions/workflows/tests.yml)
+
 A team of six role agents for [OpenCode](https://opencode.ai) that picks its own models. Lineup asks every model you have the same fixed questions on your own machine, scores the answers pass or fail, and writes the best model for each role into the agent files. It keeps a backup, checks that every changed agent still answers, and puts everything back if one does not.
 
 ![The score page of the example run](docs/report.png)
@@ -25,15 +27,32 @@ And one command, `tune`, that decides which model each of them uses.
 
 Lineup is a thin layer on OpenCode: six agent files and one Python script. It is not a chat app, it has no messaging channels and no scheduler, and nothing runs in the background. If you want a full assistant app, this is not one.
 
+## How it compares
+
+Checked on 19 November 2026 in each project's own README and guides.
+
+| | What it gives you | How an agent gets its model |
+|---|---|---|
+| [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent) (was oh-my-opencode) | a large orchestration layer for coding: many agents, categories and workflows | from built-in chains: the first model in the chain that your providers serve |
+| [oh-my-opencode-slim](https://github.com/alvinunreal/oh-my-opencode-slim) | an orchestrator with specialist coding agents | from presets you edit by hand; its README says to build your own around the models you have |
+| [OpenBot](https://github.com/next-open-ai/openbot) | a desktop assistant app with ready-made role agents | chosen by hand in the app's settings |
+| Lineup | six role agents for office work and one command | measured on your machine with fixed questions, then written into the agent files, with a backup and a put-back |
+
+The first two are far bigger than Lineup and are built for coding. If you want an orchestrator, use one of them. Lineup does the one step they leave to you, which is to measure, and it only adds six agent files named `lineup-*`, so it changes no other agent.
+
 ## Install
 
-You need OpenCode with at least one working model, and Python 3.9 or newer. No Python packages are installed.
+You need OpenCode with at least one working model.
+
+**With Python** (3.9 or newer, on Windows, macOS or Linux; no Python packages are installed):
 
 ```
 git clone https://github.com/juw12/lineup
 cd lineup
 python lineup.py install
 ```
+
+**On Windows without Python:** download `lineup.exe` from the [latest release](https://github.com/juw12/lineup/releases/latest) and run `lineup.exe install`. Every command on this page works the same with `lineup.exe` in place of `python lineup.py`.
 
 Restart OpenCode and the six agents are there. `python lineup.py uninstall` removes them again and touches nothing else.
 
@@ -48,7 +67,7 @@ Without `--models`, Lineup uses every model that `opencode models` lists. If tha
 What happens:
 
 1. **Roll call.** Every model gets one short question. A model that does not answer in 60 seconds is left out, so a retired model costs one question, not all of them.
-2. **Questions.** Each role has two fixed tasks (in `tasks.json`), so a model answers 12 questions per run. `--runs 2` asks everything twice.
+2. **Questions.** Each role has two fixed everyday tasks (in `tasks.json`), so a model answers 12 questions per run. `--hard` adds a harder third task per role, which makes 18. `--runs 2` asks everything twice.
 3. **Score.** Every task has pass-or-fail checks, for example "exactly 3 bullets", "the sum is 4,815.50", "the three newest links, in order, and no other". The score is the share of checks passed, from 0 to 10. No model judges another model.
 4. **Pick.** The best score wins a role. On equal scores the faster model wins, and the model you already use stays.
 5. **Apply.** Lineup copies the agent files to `~/.lineup/backups/`, writes the new `model:` lines, and asks each changed agent one question. If any of them does not answer, all files are put back.
@@ -56,13 +75,14 @@ What happens:
 Other commands:
 
 ```
+python lineup.py tune --hard        also ask the harder third question of every role
 python lineup.py tune --dry-run     score only, change nothing
 python lineup.py tune --resume      continue a run that a usage limit stopped
 python lineup.py status             the current lineup
 python lineup.py report             open the score page
 ```
 
-If a provider refuses more questions (a usage or rate limit), Lineup stops asking, changes no agent, and keeps every answer it already has. The same command with `--resume` continues from there, for up to 7 days.
+If a provider refuses more questions (a usage or rate limit), Lineup stops asking, changes no agent, and keeps every answer it already has. The same command with `--resume` continues from there, for up to 7 days. `--resume` also reuses the answers of an everyday run when you add `--hard` later, so only the six new questions per model are asked.
 
 Results stay on your machine in `~/.lineup` (`results.jsonl`, `lineup.json`, `report.html`).
 
@@ -92,9 +112,17 @@ What this run showed:
 
 A dry run of one model (big-pickle) on all twelve questions earlier that day passed eleven. The twelfth failed because the agent asked for permission to run a command; that task now says "without running a command".
 
+### The finishing run
+
+<!-- finishing-run:start -->
+Not done yet. Three of the free models will be asked all 18 questions on the same machine once the free limit allows it again, first try on 20 November 2026. The result will replace this paragraph and the score page.
+<!-- finishing-run:end -->
+
 ## Your own tasks
 
-The built-in tasks are a floor: they catch models that are retired, slow, or that ignore a format. They are too easy to rank good models against each other. The useful step is to add questions from your own work to `tasks.json`:
+The two everyday tasks of a role are a floor: they catch models that are retired, slow, or that ignore a format. The hard task of a role asks for several steps in one answer: count lines across three log files without counting the look-alikes, build a table sorted by a year that has to be worked out, price a product mix with two years of growth, write three sentences under six rules, compare two months by region, group a feed by day in a fixed line format.
+
+None of them knows your work. The useful step is to add questions from your own work to `tasks.json`:
 
 ```json
 {
@@ -104,13 +132,14 @@ The built-in tasks are a floor: they catch models that are retired, slow, or tha
 }
 ```
 
-Check types: `regex` (must match), `absent` (must not match), `bullets` (exact number of `- ` lines), `max_words`. Files for file tasks go in `fixtures/`; write `{fixtures}` in the prompt for that folder.
+Check types: `regex` (must match), `absent` (must not match), `bullets` (exact number of `- ` lines), `max_words`. Files for file tasks go in `fixtures/`; write `{fixtures}/your-file.csv` in the prompt and Lineup fills in the full path in the spelling of your system. Add `"level": "hard"` to a task that should only be asked with `--hard`.
 
 ## Limits
 
-- Twelve small tasks and one or two runs are a small sample. Read a score of 10 as "passed these checks", not as "the best model".
+- Twelve small tasks, or eighteen with `--hard`, and one or two runs are a small sample. Read a score of 10 as "passed these checks", not as "the best model".
 - Pass-or-fail checks measure whether an answer is correct and in the asked format. They do not measure style or depth.
-- Tested on Windows 11 with stock OpenCode 1.19.5, and on one OpenCode 2.x build, where Lineup adds `--standalone` so each question gets its own server. macOS and Linux are not tested yet.
+- The full tuning run is tested on Windows 11 with stock OpenCode 1.19.5, and on one OpenCode 2.x build, where Lineup adds `--standalone` so each question gets its own server. On macOS and Linux the unit tests run on every push, and a second job installs OpenCode there and checks that it lists the six agents. A full tuning run on macOS or Linux has not been done yet.
+- `lineup.exe` is built by a GitHub workflow from the tagged source and is not code-signed, so Windows may show a warning the first time you start it. The release lists its SHA-256.
 - Every question starts OpenCode once, so a question takes seconds even on a fast model.
 - I did not find another OpenCode add-on that measures models on your own machine and writes the result into the agents. If you know one, please open an issue and I will link it here.
 
@@ -124,7 +153,7 @@ The idea of ready-made role agents comes from [OpenBot](https://github.com/next-
 python -m unittest discover -s tests
 ```
 
-31 tests, no OpenCode and no network needed: they use a stand-in for the models and cover scoring, picking, install, apply and put-back, the roll call, the usage-limit stop and resume.
+38 tests, no OpenCode and no network needed: they use a stand-in for the models and cover scoring, picking, install, apply and put-back, the roll call, the usage-limit stop and resume, and the hard tasks. They run on Windows, macOS and Linux with Python 3.9 and 3.13 on every push.
 
 ## License
 
