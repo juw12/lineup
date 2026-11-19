@@ -82,7 +82,7 @@ python lineup.py status             the current lineup
 python lineup.py report             open the score page
 ```
 
-If a provider refuses more questions (a usage or rate limit), Lineup stops asking, changes no agent, and keeps every answer it already has. The same command with `--resume` continues from there, for up to 7 days. `--resume` also reuses the answers of an everyday run when you add `--hard` later, so only the six new questions per model are asked.
+If a provider refuses more questions (a usage or rate limit), Lineup stops asking, changes no agent, and keeps every answer it already has. The same command with `--resume` continues from there, for up to 7 days. Some providers also refuse a single question with the same message while they answer the rest. Lineup tells the two apart by asking the model one short question: if that is answered, the refused question counts as no answer, is named on the score page, and the run goes on. `--resume` also reuses the answers of an everyday run when you add `--hard` later, so only the six new questions per model are asked.
 
 Results stay on your machine in `~/.lineup` (`results.jsonl`, `lineup.json`, `report.html`).
 
@@ -153,7 +153,7 @@ The idea of ready-made role agents comes from [OpenBot](https://github.com/next-
 python -m unittest discover -s tests
 ```
 
-38 tests, no OpenCode and no network needed: they use a stand-in for the models and cover scoring, picking, install, apply and put-back, the roll call, the usage-limit stop and resume, and the hard tasks. They run on Windows, macOS and Linux with Python 3.9 and 3.13 on every push.
+40 tests, no OpenCode and no network needed: they use a stand-in for the models and cover scoring, picking, install, apply and put-back, the roll call, the usage-limit stop and resume, a single refused question, and the hard tasks. They run on Windows, macOS and Linux with Python 3.9 and 3.13 on every push.
 
 ## License
 

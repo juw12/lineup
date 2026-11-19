@@ -303,8 +303,11 @@ def tune(arguments):
     # Roll call: one short question per model, so a retired or silent model costs one question, not all of them.
     print(f"Roll call for {len(models)} models.")
     wait = min(arguments.timeout, ROLL_CALL_SECONDS)
+    # The first model is asked alone: a fresh OpenCode sets up its database at its first start, and a second
+    # start during that time fails with "database is locked".
+    replies = [ask(executable, PREFIX + roles()[0], models[0], ROLL_CALL, wait)]
     with concurrent.futures.ThreadPoolExecutor(arguments.parallel) as pool:
-        replies = list(pool.map(lambda model: ask(executable, PREFIX + roles()[0], model, ROLL_CALL, wait), models))
+        replies += pool.map(lambda model: ask(executable, PREFIX + roles()[0], model, ROLL_CALL, wait), models[1:])
     left_out = {model: reply[2] for model, reply in zip(models, replies) if not reply[0]}
     for model, reason in left_out.items():
         print(f"  left out: {model}  ({reason})")

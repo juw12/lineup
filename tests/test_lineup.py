@@ -8,6 +8,8 @@ import json
 import os
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -442,6 +444,26 @@ class Tuning(Sandbox):
         self.assertEqual(saved["left_out"], {"p/dead": "model not available"})
         self.assertEqual({model for _, model, _ in asked}, {"p/ok"})
         self.assertIn("Left out at the roll call: <b>p/dead</b>", (self.home / "report.html").read_text(encoding="utf-8"))
+
+    def test_the_first_roll_call_question_is_asked_alone(self):
+        self.run_lineup("install")
+        self.use_models({"p/a": 1.0, "p/b": 1.0, "p/c": 1.0})
+        answer, first_start, set_up = lineup.ask, threading.Lock(), threading.Event()
+
+        def fresh_opencode(executable, agent, model, prompt, timeout):
+            """The first start sets up the database; any other start during that time fails."""
+            if not set_up.is_set():
+                if not first_start.acquire(blocking=False):
+                    return "", 0.1, "database is locked"
+                time.sleep(0.2)
+                set_up.set()
+            return answer(executable, agent, model, prompt, timeout)
+
+        lineup.ask = fresh_opencode
+        self.run_lineup("tune", "--models", "p/a,p/b,p/c", "--dry-run")
+        saved = json.loads((self.home / "lineup.json").read_text(encoding="utf-8"))
+        self.assertEqual(saved["left_out"], {})
+        self.assertEqual(saved["models"], ["p/a", "p/b", "p/c"])
 
     def test_no_model_at_the_roll_call_changes_nothing(self):
         self.run_lineup("install")
