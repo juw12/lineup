@@ -1,5 +1,10 @@
 # Changes
 
+## After 0.2.0 (not in a release yet)
+
+- The test workflow can ask one real model every question on Ubuntu and macOS when started by hand. It continues once with `--resume` after a usage-limit stop and prints why a question got no answer.
+- Result of that job with two free models: 17 of 18 questions answered and scored 10 on both systems; one question was refused by the free plan every time, so a complete tuning run on macOS or Linux is still missing. The README limits say so.
+
 ## 0.2.0 (19 November 2026)
 
 - `tune --hard` asks a harder third task per role, 18 questions instead of 12. Each one needs several steps in one answer, for example counting across three log files or a month-over-month comparison by region.
