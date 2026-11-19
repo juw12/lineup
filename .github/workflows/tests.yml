@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       live_model:
-        description: "Also ask one real model every question on Linux and macOS (provider/model). Empty = skip."
+        description: "Also run a full tuning with real models on Linux and macOS (provider/model, comma-separated). Empty = skip."
         required: false
         default: ""
 
@@ -65,7 +65,7 @@ jobs:
       - run: python lineup.py uninstall
 
   live:
-    name: one real model, every question (${{ matrix.os }})
+    name: real models, a full tuning run (${{ matrix.os }})
     if: github.event_name == 'workflow_dispatch' && inputs.live_model != ''
     runs-on: ${{ matrix.os }}
     strategy:
@@ -81,28 +81,42 @@ jobs:
         with:
           node-version: "22"
       - run: npm install -g opencode-ai
+      - run: opencode --version
       - run: python lineup.py install
-      - run: python lineup.py tune --models "${{ inputs.live_model }}" --hard --dry-run --timeout 240
+      - name: Tune
+        shell: bash
+        run: |
+          set -o pipefail
+          python lineup.py tune --models "${{ inputs.live_model }}" --hard --timeout 240 2>&1 | tee tune.log
       - name: Continue once if a usage limit stopped the run
         shell: bash
         run: |
+          set -o pipefail
           stopped=$(python -c "import json, pathlib; print(json.loads((pathlib.Path.home() / '.lineup' / 'lineup.json').read_text(encoding='utf-8'))['stopped'])")
           if [ -n "$stopped" ]; then
             echo "Stopped: $stopped"
             sleep 120
-            python lineup.py tune --models "${{ inputs.live_model }}" --hard --dry-run --resume --timeout 240
+            python lineup.py tune --models "${{ inputs.live_model }}" --hard --resume --timeout 240 2>&1 | tee -a tune.log
           fi
-      - name: Every question was answered
+      - run: python lineup.py status
+      - name: The run is complete
         shell: bash
         run: |
           python - <<'EOF'
           import json, pathlib
           result = json.loads((pathlib.Path.home() / ".lineup" / "lineup.json").read_text(encoding="utf-8"))
           print(json.dumps(result["table"], indent=1))
+          cells = [cell for by_model in result["table"].values() for cell in by_model.values()]
+          asked = sum(cell["runs"] for cell in cells)
+          unanswered = sum(cell["errors"] for cell in cells)
+          print(f"{asked} questions, {unanswered} without an answer, {len(result['refused'])} of those refused by the provider")
+          for item in result["refused"]:
+              print("refused:", item)
           assert not result["stopped"], result["stopped"]
+          assert not result["left_out"], result["left_out"]
           assert len(result["measured"]) == 6, result["measured"]
-          failed = {role: cell for role, cells in result["table"].items() for cell in cells.values() if cell["errors"]}
-          assert not failed, failed
+          assert result["applied"], "the lineup was not applied"
+          assert unanswered == len(result["refused"]), "a question got no answer for another reason than a refusal"
           EOF
       - name: Why a question got no answer
         if: failure()
@@ -113,13 +127,15 @@ jobs:
           sys.path.insert(0, ".")
           import lineup
           home = pathlib.Path.home() / ".lineup"
-          answered = {json.loads(line)["task"] for line in (home / "results.jsonl").read_text(encoding="utf-8").splitlines()}
+          model = "${{ inputs.live_model }}".split(",")[0]
+          rows = [json.loads(line) for line in (home / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+          answered = {row["task"] for row in rows if row["model"] == model and not row["error"]}
           missing = [(role, task) for role, tasks in lineup.load_tasks(True).items() for task in tasks if task["id"] not in answered]
-          print("not answered:", [task["id"] for _, task in missing])
+          print("not answered by", model, ":", [task["id"] for _, task in missing])
           for role, task in missing[:1]:
               executable = lineup.find_opencode(None)
               command = [executable, "run", *lineup.run_flags(executable), "--print-logs", "--agent", lineup.PREFIX + role,
-                         "--format", "json", "--model", "${{ inputs.live_model }}", task["prompt"]]
+                         "--format", "json", "--model", model, task["prompt"]]
               try:
                   done = subprocess.run(command, cwd=lineup.FIXTURES, stdin=subprocess.DEVNULL, capture_output=True, timeout=90)
                   output, errors = done.stdout, done.stderr
@@ -137,8 +153,15 @@ jobs:
                   if any(word in line.lower() for word in ("error", "limit", "retry", "status", "webfetch")):
                       print("log:", line[:400])
           EOF
+      - name: Collect the files of the run
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p run-files
+          cp ~/.lineup/report.html ~/.lineup/lineup.json ~/.lineup/results.jsonl tune.log run-files/ || true
+          opencode --version > run-files/opencode-version.txt || true
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: score-page-${{ matrix.os }}
-          path: ~/.lineup/report.html
+          name: tuning-run-${{ matrix.os }}
+          path: run-files

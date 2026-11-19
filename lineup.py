@@ -27,7 +27,7 @@ import time
 import webbrowser
 from pathlib import Path
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 # In the packaged lineup.exe the agents, tasks and fixtures are unpacked next to the program at start.
 HERE = Path(getattr(sys, "_MEIPASS", None) or Path(__file__).resolve().parent)
 PROGRAM = "lineup" if getattr(sys, "frozen", False) else "python lineup.py"  # how the user started it
@@ -322,6 +322,7 @@ def tune(arguments):
     ]
     print(f"Tuning {len(roles())} roles on {len(models)} models: {len(jobs)} questions, {arguments.parallel} at a time.")
     stopped = []  # the provider's message once it refuses more questions
+    refused = []  # questions the provider refused while the same model still answered another one
 
     def run(job):
         role, model, task, run_number = job
@@ -330,9 +331,15 @@ def tune(arguments):
         if stopped:
             return None
         answer, seconds, error = ask(executable, PREFIX + role, model, task["prompt"], arguments.timeout)
-        if LIMIT.search(error):  # a usage limit says nothing about the model, so it is not scored
-            stopped.append(error)
-            return None
+        if LIMIT.search(error):
+            # A real usage limit refuses everything, also the roll-call question. It says nothing about the
+            # model, so the run stops and the question is not scored.
+            if stopped or not ask(executable, PREFIX + roles()[0], model, ROLL_CALL, wait)[0]:
+                stopped.append(error)
+                return None
+            # The model still answers, so the provider refused this one question: no answer, and the run goes on.
+            refused.append({"role": role, "model": model, "task": task["id"]})
+            error = ("refused while other questions were answered: " + error)[:200]
         return {
             "tuned_at": tuned_at, "role": role, "model": model, "task": task["id"], "run": run_number,
             "score": score_answer(task, answer), "seconds": round(seconds, 1), "error": error, "answer": answer[:600],
@@ -362,7 +369,7 @@ def tune(arguments):
     chosen = {role: pick(table[role], before[role]) if role in measured else before[role] for role in roles()}
     result = {
         "version": VERSION, "tuned_at": tuned_at, "models": models, "left_out": left_out, "hard": arguments.hard,
-        "stopped": stopped[0] if stopped else "", "table": table, "measured": measured,
+        "stopped": stopped[0] if stopped else "", "refused": refused, "table": table, "measured": measured,
         "before": before, "lineup": chosen, "applied": False,
     }
 
@@ -370,15 +377,17 @@ def tune(arguments):
         print(f"\nStopped after {len(rows)} of {len(jobs)} questions: {stopped[0]}")
         print("No agent was changed. The answers so far are saved: run the same command with --resume to continue.")
     elif not arguments.dry_run:
-        result["applied"] = apply(executable, agent_files, chosen, before, tasks, arguments.timeout)
+        result["applied"] = apply(executable, agent_files, chosen, before, tasks, arguments.timeout, refused)
     (store / "lineup.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     print()
     print_lineup(result)
+    for item in refused:
+        print(f"refused by the provider, counted as no answer: {item['task']} on {item['model']}")
     report_file = write_report(result)
     print(f"\nScore page: {report_file}")
 
 
-def apply(executable, agent_files, chosen, before, tasks, timeout):
+def apply(executable, agent_files, chosen, before, tasks, timeout, refused=()):
     """Write the chosen models, then prove each changed agent still answers. Any failure puts all back."""
     changed = [role for role in chosen if chosen[role] != before[role]]
     if not changed:
@@ -390,7 +399,10 @@ def apply(executable, agent_files, chosen, before, tasks, timeout):
         shutil.copyfile(agent_files[role], backup / agent_files[role].name)
         write_model(agent_files[role], chosen[role])
     for role in changed:
-        answer, _, error = ask(executable, PREFIX + role, None, tasks[role][0]["prompt"], timeout)
+        # The first question of the role that the provider did not refuse on this model.
+        skipped = [item["task"] for item in refused if item["role"] == role and item["model"] == chosen[role]]
+        question = next(task for task in tasks[role] if task["id"] not in skipped)
+        answer, _, error = ask(executable, PREFIX + role, None, question["prompt"], timeout)
         if not answer:
             for restored in changed:
                 shutil.copyfile(backup / agent_files[restored].name, agent_files[restored])
@@ -463,6 +475,11 @@ def write_report(result):
         lines.append(f"<tr><th>{html.escape(role)}</th>{''.join(cells)}</tr>")
     if result.get("stopped"):
         notes.append(f'This run stopped early: {html.escape(result["stopped"])} Continue it with <code>tune --resume</code>.')
+    for item in result.get("refused", []):
+        notes.append(
+            f'The provider refused <b>{html.escape(item["task"])}</b> on <b>{html.escape(item["model"])}</b> while that '
+            "model answered other questions. It counts as no answer; <code>tune --resume</code> asks it again."
+        )
     for model, reason in result.get("left_out", {}).items():
         notes.append(f"Left out at the roll call: <b>{html.escape(model)}</b> ({html.escape(reason)})")
     heads = "".join(f"<th>{html.escape(model.split('/', 1)[-1])}</th>" for model in models)

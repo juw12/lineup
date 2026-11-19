@@ -131,12 +131,14 @@ class Sandbox(unittest.TestCase):
             lineup.main(list(arguments))
         return output.getvalue()
 
-    def use_models(self, quality, dead=(), flaky=(), limit_after=None, hard_good=()):
+    def use_models(self, quality, dead=(), flaky=(), limit_after=None, hard_good=(), refused=()):
         """quality: model -> share of each role's everyday tasks it answers well.
 
         dead: models that never answer. flaky: models that answer the roll call and nothing else.
-        limit_after: the provider refuses every question after this many. Returns the list of questions asked.
+        limit_after: the provider refuses every question after this many, also the roll-call one.
         hard_good: the models that also answer the hard tasks well.
+        refused: task ids the provider refuses every time, while it answers everything else.
+        Returns the list of questions asked, without the roll-call ones.
         """
         place = {}  # prompt -> (task id, position within its role, tasks in that role)
         for tasks in lineup.load_tasks().values():
@@ -152,11 +154,13 @@ class Sandbox(unittest.TestCase):
             model = model or lineup.read_model(self.agents / f"{agent}.md")
             if model in dead:
                 return "", 1.0, "model not available"
-            if prompt == lineup.ROLL_CALL:
-                return "ready", 1.0, ""
             if limit_after is not None and len(asked) >= limit_after:
                 return "", 1.0, "Free usage limit reached."
+            if prompt == lineup.ROLL_CALL:
+                return "ready", 1.0, ""
             asked.append((agent, model, prompt))
+            if (hard.get(prompt) or place[prompt][0]) in refused:
+                return "", 1.0, "Free usage limit reached."
             if model in flaky:
                 return "", 1.0, "empty answer"
             if prompt in hard:
@@ -480,6 +484,34 @@ class Tuning(Sandbox):
         for path in self.agents.glob("lineup-*.md"):
             self.assertEqual(lineup.read_model(path), "p/strong", path.name)
         self.assertEqual(len((self.home / "results.jsonl").read_text(encoding="utf-8").splitlines()), 24)
+
+    def test_one_refused_question_counts_as_no_answer_and_the_run_goes_on(self):
+        self.run_lineup("install")
+        asked = self.use_models({"p/weak": 0.5, "p/strong": 1.0}, refused=("briefing-newest-three",))
+        output = self.run_lineup("tune", "--models", "p/weak,p/strong", "--parallel", "1")
+        self.assertNotIn("Stopped after", output)
+        self.assertIn("refused by the provider, counted as no answer: briefing-newest-three on p/strong", output)
+        self.assertEqual(len(asked), 24 + 6)  # every question, then one check per changed agent
+        saved = json.loads((self.home / "lineup.json").read_text(encoding="utf-8"))
+        self.assertEqual(saved["stopped"], "")
+        self.assertEqual(saved["measured"], lineup.roles())
+        self.assertTrue(saved["applied"])
+        self.assertEqual(
+            saved["refused"],
+            [{"role": "briefing", "model": model, "task": "briefing-newest-three"} for model in ("p/weak", "p/strong")],
+        )
+        self.assertEqual(saved["table"]["briefing"]["p/strong"], {"score": 5.0, "seconds": 3.0, "errors": 1, "runs": 2})
+        self.assertEqual(saved["table"]["docs"]["p/strong"]["score"], 10.0)
+        for path in self.agents.glob("lineup-*.md"):
+            self.assertEqual(lineup.read_model(path), "p/strong", path.name)
+        page = (self.home / "report.html").read_text(encoding="utf-8")
+        self.assertIn("The provider refused <b>briefing-newest-three</b> on <b>p/strong</b>", page)
+        self.assertNotIn("This run stopped early", page)
+
+        del asked[:]
+        output = self.run_lineup("tune", "--models", "p/weak,p/strong", "--parallel", "1", "--resume")
+        self.assertEqual(len(asked), 2)  # only the refused question, once per model
+        self.assertEqual(output.count("(from the earlier run)"), 22)
 
     def test_hard_asks_a_third_question_and_separates_models_that_tie_on_the_everyday_ones(self):
         self.run_lineup("install")
