@@ -8,6 +8,12 @@ A team of six role agents for [OpenCode](https://opencode.ai) that picks its own
 
 The picture is the score page of a real run, also at [juw12.github.io/lineup](https://juw12.github.io/lineup/). It shows the finishing run: see [The finishing run](#the-finishing-run).
 
+## On a Mac
+
+- **Mac:** [`Lineup-macOS-AppleSilicon.dmg`](https://github.com/juw12/lineup/releases/download/mac/Lineup-macOS-AppleSilicon.dmg) (M1 and newer) or [`Lineup-macOS-Intel.dmg`](https://github.com/juw12/lineup/releases/download/mac/Lineup-macOS-Intel.dmg). Open it and drag Lineup to Applications. The first time, macOS blocks it because it is not notarized: **System Settings → Privacy & Security → Open Anyway**.
+
+It is the web edition (https://juw12.github.io/lineup/) in its own window ([`desktop/`](desktop/README.md)) and changes with it. Each build is opened on an Apple-silicon Mac and an Intel Mac on GitHub before it is published: the page loads, the app starts and can store data. No Mac of ours has run it yet.
+
 ## What you get
 
 Six agents you can pick in OpenCode (Tab in the terminal, the agent menu in the desktop app) or call as subagents:
