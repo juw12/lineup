@@ -8,6 +8,15 @@ A team of six role agents for [OpenCode](https://opencode.ai) that picks its own
 
 The picture is the score page of a real run, also at [juw12.github.io/lineup](https://juw12.github.io/lineup/). It shows the finishing run: see [The finishing run](#the-finishing-run).
 
+## Get it on your device
+
+- **Windows:** Lineup itself: `lineup.exe` from the [latest release](https://github.com/juw12/lineup/releases/latest), or with Python (see [Install](#install)).
+- **Mac:** Lineup itself runs with Python (see [Install](#install)). [`Lineup-macOS-AppleSilicon.dmg`](https://github.com/juw12/lineup/releases/download/mac/Lineup-macOS-AppleSilicon.dmg) (M1 and newer) and [`Lineup-macOS-Intel.dmg`](https://github.com/juw12/lineup/releases/download/mac/Lineup-macOS-Intel.dmg) are the example score page in its own window. The first time, macOS blocks it because it is not notarized: **System Settings → Privacy & Security → Open Anyway**.
+- **Android:** [`Lineup-android.apk`](https://github.com/juw12/lineup/releases/download/android/Lineup-android.apk): open the file on the phone and allow your browser to install apps once.
+- **iPhone:** open https://juw12.github.io/lineup/ in Safari, tap Share, then **Add to Home Screen**.
+
+The Mac window and the two phone apps open Lineup's example score page (https://juw12.github.io/lineup/: what a tuning run writes, from the run of 19 November 2026) ([`desktop/`](desktop/README.md), [`android/`](android/README.md)). They do not tune anything: Lineup itself runs on the computer where OpenCode is. Each build is opened on GitHub's machines before it is published: on an Apple-silicon Mac and an Intel Mac the page loads and the app starts; on an Android emulator it installs, opens and stays up. They are not notarised, and no real phone or Mac has run them yet.
+
 ## What you get
 
 Six agents you can pick in OpenCode (Tab in the terminal, the agent menu in the desktop app) or call as subagents:
